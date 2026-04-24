@@ -6,16 +6,14 @@ Vercel Serverless Backend — Vercel Postgres/Neon via psycopg2.
 import os
 import uuid
 import psycopg2
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 
 def get_conn():
     # Priority 1: DATABASE_URL (Standard Vercel/Neon integration)
-    # Includes pooling (PgBouncer) and sslmode=require
     url = os.environ.get("DATABASE_URL")
     if url:
-        # Compatibility fix for some SQL libraries that require 'postgresql://' prefix
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         return psycopg2.connect(url)
@@ -25,7 +23,6 @@ def get_conn():
     if url_legacy:
         return psycopg2.connect(url_legacy)
 
-    # Fallback: Individual components (for local development or custom setups)
     return psycopg2.connect(
         host=os.environ.get("DB_HOST", "localhost"),
         database=os.environ.get("DB_NAME", "wmis_db"),
@@ -47,9 +44,21 @@ def gen_id(prefix):
 
 
 def is_oversell_error(e):
-    # PostgreSQL error code for RAISE EXCEPTION '50000'
     return "50000" in str(e) or "Overselling" in str(e)
 
+
+# ============================================================
+# FRONTEND SERVING
+# ============================================================
+@app.route("/")
+def index():
+    # Serving index.html from the root directory relative to this script
+    # In Vercel, the directory structure is preserved in the function environment
+    try:
+        return send_file("../index.html")
+    except:
+        # Fallback if the path is slightly different in the build environment
+        return send_file("index.html")
 
 # ============================================================
 # API ENDPOINTS
@@ -260,7 +269,6 @@ def place_order():
             "INSERT INTO ORDERS (OrderID, StaffID, OrderDate, OrderStatus) VALUES (%s, %s, NOW(), 'Pending')",
             (order_id, staff_id)
         )
-        # This INSERT fires trg_PreventOverselling on the database side.
         cur.execute(
             "INSERT INTO ORDER_DETAILS (OrderDetailID, OrderID, ProductID, QuantityOrdered) VALUES (%s, %s, %s, %s)",
             (order_detail_id, order_id, product_id, quantity_ordered)
