@@ -9,10 +9,5 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "ignore": [
-    "wmis_demo.db",
-    "database.sql",
-    "app.py"
   ]
 }
