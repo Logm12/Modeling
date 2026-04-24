@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Warehouse Management Information System — Full-process inventory, inbound, outbound, and reverse logistics management." />
+    <title>WMIS — Warehouse Management Information System</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --c-bg:        #0d0d1a;
+            --c-surface:   #14142b;
+            --c-surface2:  #1e1e3a;
+            --c-surface3:  #252545;
+            --c-border:    rgba(255,255,255,0.07);
+            --c-primary:   #6366f1;
+            --c-primary2:  #818cf8;
+            --c-success:   #22c55e;
+            --c-warning:   #f59e0b;
+            --c-danger:    #ef4444;
+            --c-text:      #e2e8f0;
+            --c-muted:     #94a3b8;
+            --radius:      12px;
+            --radius-sm:   8px;
+            --shadow:      0 4px 28px rgba(0,0,0,0.35);
+            --trans:       0.22s cubic-bezier(.4,0,.2,1);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--c-bg);
+            color: var(--c-text);
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ─────────────────────────────── */
+        .hdr {
+            background: rgba(20,20,43,0.9);
+            backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--c-border);
+            padding: .9rem 0;
+            position: sticky; top: 0; z-index: 1050;
+        }
+        .hdr-brand {
+            font-weight: 800; font-size: 1.25rem;
+            background: linear-gradient(120deg, var(--c-primary), #a78bfa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hdr-brand i { -webkit-text-fill-color: var(--c-primary); margin-right:.35rem; }
+        .hdr-sub { font-size:.75rem; color:var(--c-muted); }
+        .live-dot {
+            width:8px; height:8px; border-radius:50%;
+            background:var(--c-success); display:inline-block;
+            animation: pulse 1.8s ease-in-out infinite; margin-right:6px;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+        /* ── MAIN NAV TABS ────────────────────────── */
+        .main-nav {
+            background: var(--c-surface);
+            border-bottom: 1px solid var(--c-border);
+        }
+        .main-nav .nav-link {
+            color: var(--c-muted); font-weight:500; font-size:.88rem;
+            padding:.7rem 1.3rem; border:none; border-radius:0;
+            border-bottom: 2px solid transparent;
+            transition: all var(--trans);
+        }
+        .main-nav .nav-link:hover { color:var(--c-text); background:rgba(99,102,241,.07); }
+        .main-nav .nav-link.active { color:var(--c-primary2); border-bottom-color:var(--c-primary); }
+        .main-nav .nav-link i { margin-right:.35rem; }
+
+        /* ── CARDS ────────────────────────────────── */
+        .card-w {
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .card-hd {
+            background: var(--c-surface2);
+            padding: .8rem 1.2rem;
+            font-weight:600; font-size:.9rem;
+            border-bottom: 1px solid var(--c-border);
+            display:flex; align-items:center; gap:.5rem;
+        }
+        .card-bd { padding:1.25rem; }
+
+        /* ── KPI BADGES ───────────────────────────── */
+        .kpi-grid { display:grid; gap:1rem; grid-template-columns: repeat(auto-fill,minmax(140px,1fr)); margin-bottom:1.25rem; }
+        .kpi {
+            background: var(--c-surface2);
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius-sm);
+            padding:.85rem 1rem; text-align:center;
+            transition: border-color var(--trans), transform var(--trans);
+            cursor:default;
+        }
+        .kpi:hover { border-color:var(--c-primary); transform:translateY(-2px); }
+        .kpi-val {
+            font-size:1.7rem; font-weight:700; line-height:1;
+            background: linear-gradient(135deg,var(--c-primary),#a78bfa);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        }
+        .kpi-lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--c-muted); margin-top:4px; }
+
+        /* ── CHART GRID ───────────────────────────── */
+        .chart-grid { display:grid; gap:1rem; grid-template-columns:1fr 1fr; }
+        @media(max-width:768px){ .chart-grid { grid-template-columns:1fr; } }
+        .chart-box {
+            background: var(--c-surface2);
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius-sm);
+            padding:1rem;
+        }
+        .chart-box h6 {
+            font-size:.8rem; font-weight:600; text-transform:uppercase;
+            letter-spacing:.05em; color:var(--c-muted); margin-bottom:.75rem;
+        }
+        .chart-box canvas { max-height:260px; }
+
+        /* ── STOCK TIMELINE (product sequence) ────── */
+        .product-seq { display:flex; flex-direction:column; gap:.55rem; }
+        .prd-row {
+            display:flex; align-items:center; gap:.75rem;
+            background: var(--c-surface2);
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius-sm);
+            padding:.6rem .9rem;
+            transition: border-color var(--trans);
+        }
+        .prd-row:hover { border-color: var(--c-primary); }
+        .prd-badge {
+            min-width:70px; text-align:center;
+            font-size:.72rem; font-weight:700;
+            padding:3px 8px; border-radius:6px;
+            background: rgba(99,102,241,.15); color:var(--c-primary2);
+        }
+        .prd-name { font-size:.84rem; font-weight:600; flex:1; }
+        .prd-cat  { font-size:.72rem; color:var(--c-muted); }
+        .prd-bar-wrap { flex:2; position:relative; }
+        .prd-bar-track {
+            width:100%; height:10px; border-radius:99px;
+            background:rgba(255,255,255,.07); overflow:hidden;
+        }
+        .prd-bar-fill {
+            height:100%; border-radius:99px;
+            background: linear-gradient(90deg, var(--c-primary), #a78bfa);
+            transition: width 1s cubic-bezier(.4,0,.2,1);
+        }
+        .prd-bar-fill.locked    { background: linear-gradient(90deg, var(--c-warning), #fbbf24); }
+        .prd-bar-fill.quarantine{ background: linear-gradient(90deg, var(--c-danger), #f87171); }
+        .prd-qty { min-width:48px; text-align:right; font-weight:700; font-size:.88rem; }
+
+        /* ── TABLE ─────────────────────────────────── */
+        .tbl-wrap { overflow-x:auto; border-radius:var(--radius-sm); max-height:440px; overflow-y:auto; }
+        .wmis-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.84rem; }
+        .wmis-table thead th {
+            background:var(--c-surface2); color:var(--c-muted);
+            font-weight:600; font-size:.73rem; text-transform:uppercase; letter-spacing:.05em;
+            padding:.7rem .8rem; border-bottom:1px solid var(--c-border);
+            position:sticky; top:0; z-index:2;
+        }
+        .wmis-table tbody td {
+            padding:.58rem .8rem; border-bottom:1px solid var(--c-border);
+            vertical-align:middle; transition:background var(--trans);
+        }
+        .wmis-table tbody tr:hover td { background:rgba(99,102,241,.06); }
+        .wmis-table tbody tr { animation:rowIn .3s ease forwards; opacity:0; }
+        @keyframes rowIn { to { opacity:1; } }
+
+        /* ── STATUS PILLS ──────────────────────────── */
+        .pill {
+            display:inline-flex; align-items:center; gap:4px;
+            padding:3px 10px; border-radius:999px;
+            font-size:.73rem; font-weight:600;
+        }
+        .pill::before { content:''; width:6px; height:6px; border-radius:50%; }
+        .pill-av  { background:rgba(34,197,94,.13); color:#4ade80; }
+        .pill-av::before  { background:var(--c-success); }
+        .pill-lk  { background:rgba(245,158,11,.13); color:#fbbf24; }
+        .pill-lk::before  { background:var(--c-warning); }
+        .pill-qr  { background:rgba(239,68,68,.13); color:#f87171; }
+        .pill-qr::before  { background:var(--c-danger); }
+
+        /* ── PROCESS TABS ──────────────────────────── */
+        .proc-tabs .nav-link {
+            color:var(--c-muted); font-weight:500; font-size:.86rem;
+            padding:.55rem 1.1rem; border:none;
+            border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+            transition:all var(--trans);
+        }
+        .proc-tabs .nav-link:hover { color:var(--c-text); background:rgba(99,102,241,.08); }
+        .proc-tabs .nav-link.active { background:var(--c-surface); color:var(--c-primary2); border-bottom:2px solid var(--c-primary); }
+
+        /* ── FORMS ─────────────────────────────────── */
+        .wmis-form .form-label { font-size:.78rem; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.3rem; }
+        .wmis-form .form-control,
+        .wmis-form .form-select {
+            background:var(--c-surface3); border:1px solid var(--c-border);
+            color:var(--c-text); border-radius:var(--radius-sm);
+            padding:.52rem .8rem; font-size:.87rem;
+            transition:border-color var(--trans), box-shadow var(--trans);
+        }
+        .wmis-form .form-control:focus,
+        .wmis-form .form-select:focus {
+            border-color:var(--c-primary);
+            box-shadow:0 0 0 3px rgba(99,102,241,.18);
+            background:var(--c-surface3); color:var(--c-text);
+        }
+
+        /* ── BUTTONS ───────────────────────────────── */
+        .btn-w {
+            background:linear-gradient(135deg,var(--c-primary),#7c3aed);
+            border:none; color:#fff; font-weight:600;
+            padding:.52rem 1.4rem; border-radius:var(--radius-sm);
+            font-size:.87rem; transition:all var(--trans);
+        }
+        .btn-w:hover { background:linear-gradient(135deg,var(--c-primary2),#8b5cf6); transform:translateY(-1px); box-shadow:0 4px 16px rgba(99,102,241,.35); color:#fff; }
+        .btn-w:active { transform:translateY(0); }
+
+        /* ── TOASTS ─────────────────────────────────── */
+        .toast-ct { position:fixed; top:1rem; right:1rem; z-index:9999; display:flex; flex-direction:column; gap:.4rem; pointer-events:none; }
+        .toast-w {
+            pointer-events:auto; min-width:310px; max-width:400px;
+            padding:.8rem 1rem; border-radius:var(--radius-sm); font-size:.86rem; font-weight:500;
+            display:flex; align-items:flex-start; gap:.55rem;
+            box-shadow:0 8px 32px rgba(0,0,0,.45);
+            animation:tIn .38s cubic-bezier(.21,1.02,.73,1) forwards;
+            border-left:4px solid;
+        }
+        .toast-ok { background:rgba(34,197,94,.1); border-color:var(--c-success); color:#86efac; }
+        .toast-er { background:rgba(239,68,68,.12); border-color:var(--c-danger); color:#fca5a5; }
+        .toast-w .t-close { margin-left:auto; cursor:pointer; opacity:.6; transition:opacity .2s; background:none; border:none; color:inherit; font-size:1rem; }
+        .toast-w .t-close:hover { opacity:1; }
+        @keyframes tIn { from{opacity:0;transform:translateX(38px) scale(.95)} to{opacity:1;transform:none} }
+        @keyframes tOut { to{opacity:0;transform:translateX(38px) scale(.95)} }
+
+        /* ── SKELETON ──────────────────────────────── */
+        .skel { height:13px; border-radius:6px; background:var(--c-surface2); position:relative; overflow:hidden; }
+        .skel::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent); animation:shim 1.5s infinite; }
+        @keyframes shim { from{transform:translateX(-100%)} to{transform:translateX(100%)} }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+    <div class="container-xl d-flex align-items-center gap-3">
+        <span class="hdr-brand"><i class="bi bi-box-seam-fill"></i>WMIS</span>
+        <span class="hdr-sub d-none d-md-inline">Warehouse Management Information System</span>
+        <span class="ms-auto d-flex align-items-center" style="font-size:.76rem;color:var(--c-muted)">
+            <span class="live-dot"></span>System Online
+        </span>
+    </div>
+</header>
+
+<!-- MAIN NAV -->
+<nav class="main-nav">
+    <div class="container-xl">
+        <ul class="nav" id="mainNav" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#page-dashboard" type="button">
+                    <i class="bi bi-grid-1x2-fill"></i>Dashboard
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#page-inventory" type="button">
+                    <i class="bi bi-archive-fill"></i>Inventory
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#page-products" type="button">
+                    <i class="bi bi-box-fill"></i>Products
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#page-orders" type="button">
+                    <i class="bi bi-receipt"></i>Orders
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#page-process" type="button">
+                    <i class="bi bi-diagram-3-fill"></i>Processes
+                </button>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-ct" id="toastCt"></div>
+
+<main class="container-xl py-4">
+<div class="tab-content">
+
+    <!-- ═══════════════════════════════════════════
+         PAGE 1: DASHBOARD
+    ═══════════════════════════════════════════ -->
+    <div class="tab-pane fade show active" id="page-dashboard">
+
+        <!-- KPI Row -->
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="kpi"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Total SKUs</div></div>
+            <div class="kpi"><div class="kpi-val" id="kpiAvail">—</div><div class="kpi-lbl">Available</div></div>
+            <div class="kpi"><div class="kpi-val" id="kpiLocked">—</div><div class="kpi-lbl">Locked</div></div>
+            <div class="kpi"><div class="kpi-val" id="kpiQuaran">—</div><div class="kpi-lbl">Quarantined</div></div>
+            <div class="kpi"><div class="kpi-val" id="kpiQty">—</div><div class="kpi-lbl">Total Units</div></div>
+            <div class="kpi"><div class="kpi-val" id="kpiOrders">—</div><div class="kpi-lbl">Total Orders</div></div>
+        </div>
+
+        <!-- Charts 2x2 -->
+        <div class="chart-grid mb-4">
+            <div class="chart-box">
+                <h6><i class="bi bi-bar-chart-fill me-1" style="color:var(--c-primary)"></i>Stock Quantity by Product</h6>
+                <canvas id="chartProduct"></canvas>
+            </div>
+            <div class="chart-box">
+                <h6><i class="bi bi-pie-chart-fill me-1" style="color:var(--c-warning)"></i>Inventory Status Distribution</h6>
+                <canvas id="chartStatus"></canvas>
+            </div>
+            <div class="chart-box">
+                <h6><i class="bi bi-bar-chart-steps me-1" style="color:#34d399"></i>Stock by Category</h6>
+                <canvas id="chartCategory"></canvas>
+            </div>
+            <div class="chart-box">
+                <h6><i class="bi bi-clipboard2-check-fill me-1" style="color:#f472b6"></i>Order Status Overview</h6>
+                <canvas id="chartOrders"></canvas>
+            </div>
+        </div>
+
+        <!-- Product Sequence Overview -->
+        <div class="card-w mb-3">
+            <div class="card-hd">
+                <i class="bi bi-list-ol" style="color:var(--c-primary)"></i>
+                Warehouse Overview — Stock by Product (Sequential)
+                <button class="btn btn-sm ms-auto" onclick="loadDashboard()" style="background:var(--c-surface3);border:1px solid var(--c-border);color:var(--c-text);font-size:.75rem;border-radius:6px;">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-bd">
+                <div class="product-seq" id="productSeq">
+                    <div class="skel" style="height:36px;border-radius:8px"></div>
+                    <div class="skel" style="height:36px;border-radius:8px"></div>
+                    <div class="skel" style="height:36px;border-radius:8px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PAGE 2: INVENTORY TABLE
+    ═══════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="page-inventory">
+        <div class="card-w">
+            <div class="card-hd">
+                <i class="bi bi-archive-fill" style="color:var(--c-primary)"></i>
+                Real-Time Inventory Table
+                <button class="btn btn-sm ms-auto" onclick="loadInventory()" id="btnRefresh"
+                    style="background:var(--c-surface3);border:1px solid var(--c-border);color:var(--c-text);font-size:.75rem;border-radius:6px;">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-bd">
+                <!-- Mini KPIs -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));margin-bottom:1rem">
+                    <div class="kpi"><div class="kpi-val" id="iTotal">—</div><div class="kpi-lbl">Items</div></div>
+                    <div class="kpi"><div class="kpi-val" id="iAvail">—</div><div class="kpi-lbl">Available</div></div>
+                    <div class="kpi"><div class="kpi-val" id="iLock">—</div><div class="kpi-lbl">Locked</div></div>
+                    <div class="kpi"><div class="kpi-val" id="iQuar">—</div><div class="kpi-lbl">Quarantined</div></div>
+                    <div class="kpi"><div class="kpi-val" id="iQty">—</div><div class="kpi-lbl">Total Qty</div></div>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="wmis-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Inventory ID</th>
+                                <th>Location</th>
+                                <th>Zone</th>
+                                <th>Aisle</th>
+                                <th>Product ID</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Batch ID</th>
+                                <th>Expiry</th>
+                                <th>Staff</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invBody">
+                            <tr><td colspan="13"><div class="skel"></div></td></tr>
+                            <tr><td colspan="13"><div class="skel" style="width:80%"></div></td></tr>
+                            <tr><td colspan="13"><div class="skel" style="width:90%"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PAGE 3: PRODUCTS
+    ═══════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="page-products">
+        <div class="card-w">
+            <div class="card-hd">
+                <i class="bi bi-box-fill" style="color:var(--c-primary)"></i>
+                Products Catalogue
+                <button class="btn btn-sm ms-auto" onclick="loadProducts()" style="background:var(--c-surface3);border:1px solid var(--c-border);color:var(--c-text);font-size:.75rem;border-radius:6px;">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-bd">
+                <div class="tbl-wrap">
+                    <table class="wmis-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product ID</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Size</th>
+                                <th>Color</th>
+                                <th>Batch ID</th>
+                                <th>Inventory Date</th>
+                                <th>Expiry Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prdBody">
+                            <tr><td colspan="9"><div class="skel"></div></td></tr>
+                            <tr><td colspan="9"><div class="skel" style="width:75%"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PAGE 4: ORDERS
+    ═══════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="page-orders">
+        <div class="card-w">
+            <div class="card-hd">
+                <i class="bi bi-receipt" style="color:var(--c-primary)"></i>
+                Orders &amp; Waybill
+                <button class="btn btn-sm ms-auto" onclick="loadOrders()" style="background:var(--c-surface3);border:1px solid var(--c-border);color:var(--c-text);font-size:.75rem;border-radius:6px;">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-bd">
+                <div class="tbl-wrap">
+                    <table class="wmis-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Order ID</th>
+                                <th>Staff</th>
+                                <th>Order Date</th>
+                                <th>Order Status</th>
+                                <th>Product</th>
+                                <th>Qty Ordered</th>
+                                <th>Waybill</th>
+                                <th>Tracking</th>
+                                <th>Zone</th>
+                                <th>Courier</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordBody">
+                            <tr><td colspan="11"><div class="skel"></div></td></tr>
+                            <tr><td colspan="11"><div class="skel" style="width:80%"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PAGE 5: PROCESSES
+    ═══════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="page-process">
+        <div class="card-w">
+            <div class="card-hd"><i class="bi bi-diagram-3-fill" style="color:var(--c-primary)"></i>Warehouse Processes</div>
+            <div class="card-bd p-0">
+                <ul class="nav proc-tabs nav-tabs px-3 pt-2" id="procTab" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-in" type="button">
+                            <i class="bi bi-box-arrow-in-down me-1"></i>Inbound
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-out" type="button">
+                            <i class="bi bi-box-arrow-up me-1"></i>Outbound (Order)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ret" type="button">
+                            <i class="bi bi-arrow-return-left me-1"></i>Reverse Logistics
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content p-4">
+
+                    <!-- INBOUND -->
+                    <div class="tab-pane fade show active" id="tab-in">
+                        <h6 class="mb-3 fw-bold"><i class="bi bi-plus-circle-fill text-success me-1"></i>Receive New Stock</h6>
+                        <form class="wmis-form row g-3" id="formIn" autocomplete="off">
+                            <div class="col-md-3">
+                                <label class="form-label" for="inPrd">Product ID</label>
+                                <input type="text" class="form-control" id="inPrd" placeholder="e.g. PRD001" required />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="inLoc">Location ID</label>
+                                <input type="text" class="form-control" id="inLoc" placeholder="e.g. LOC001" required />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="inStaff">Staff ID</label>
+                                <input type="text" class="form-control" id="inStaff" placeholder="e.g. STF001" value="STF001" required />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="inQty">Quantity</label>
+                                <input type="number" class="form-control" id="inQty" placeholder="e.g. 50" min="1" required />
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn-w" id="btnIn">
+                                    <i class="bi bi-check2-circle me-1"></i>Submit Inbound
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- OUTBOUND -->
+                    <div class="tab-pane fade" id="tab-out">
+                        <h6 class="mb-3 fw-bold"><i class="bi bi-cart-check-fill me-1" style="color:var(--c-primary2)"></i>Place an Outbound Order</h6>
+                        <form class="wmis-form row g-3" id="formOut" autocomplete="off">
+                            <div class="col-md-6">
+                                <label class="form-label" for="outPrd">Product ID</label>
+                                <input type="text" class="form-control" id="outPrd" placeholder="e.g. PRD001" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="outQty">Quantity Ordered</label>
+                                <input type="number" class="form-control" id="outQty" placeholder="e.g. 10" min="1" required />
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn-w" id="btnOut">
+                                    <i class="bi bi-send-fill me-1"></i>Place Order
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- REVERSE -->
+                    <div class="tab-pane fade" id="tab-ret">
+                        <h6 class="mb-3 fw-bold"><i class="bi bi-arrow-counterclockwise me-1" style="color:var(--c-warning)"></i>Update Inventory Status</h6>
+                        <form class="wmis-form row g-3" id="formRet" autocomplete="off">
+                            <div class="col-md-6">
+                                <label class="form-label" for="retId">Inventory ID</label>
+                                <input type="text" class="form-control" id="retId" placeholder="e.g. INV004" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="retSt">New Status</label>
+                                <select class="form-select" id="retSt" required>
+                                    <option value="" disabled selected>Select status…</option>
+                                    <option value="Available">Available</option>
+                                    <option value="Locked">Locked</option>
+                                    <option value="Quarantined">Quarantined</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn-w" id="btnRet">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Update Status
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /tab-content -->
+
+<footer class="text-center mt-4 pb-3" style="font-size:.73rem;color:var(--c-muted)">
+    WMIS Prototype &copy; 2026 &mdash; Flask · Azure SQL · Bootstrap · Chart.js
+</footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ─────────────────────────────────────────
+   TOAST
+───────────────────────────────────────── */
+function toast(msg, type='ok'){
+    const ct = document.getElementById('toastCt');
+    const el = document.createElement('div');
+    el.className = `toast-w toast-${type}`;
+    el.innerHTML = `
+        <i class="bi bi-${type==='ok'?'check-circle-fill':'exclamation-triangle-fill'}"></i>
+        <span>${msg}</span>
+        <button class="t-close" onclick="this.parentElement.remove()"><i class="bi bi-x-lg"></i></button>`;
+    ct.appendChild(el);
+    setTimeout(()=>{ el.style.animation='tOut .3s ease forwards'; setTimeout(()=>el.remove(),320); },5000);
+}
+
+/* ─────────────────────────────────────────
+   BUTTON LOADING
+───────────────────────────────────────── */
+function setBtnLoad(btn, on){
+    if(on){ btn._orig=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Processing…'; }
+    else  { btn.disabled=false; btn.innerHTML=btn._orig; }
+}
+
+/* ─────────────────────────────────────────
+   CHART INSTANCES
+───────────────────────────────────────── */
+const charts = {};
+function makeChart(id, cfg){
+    if(charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, cfg);
+}
+
+const palette = ['#6366f1','#a78bfa','#34d399','#f59e0b','#f472b6','#38bdf8','#fb923c'];
+
+/* ─────────────────────────────────────────
+   LOAD DASHBOARD
+───────────────────────────────────────── */
+async function loadDashboard(){
+    try{
+        const [statsRes, invRes] = await Promise.all([
+            fetch('/api/stats'),
+            fetch('/api/inventory')
+        ]);
+        const stats = await statsRes.json();
+        const inv   = await invRes.json();
+
+        if(!statsRes.ok) throw new Error(stats.error);
+        if(!invRes.ok)   throw new Error(inv.error);
+
+        // ── KPIs ──
+        const totalItems = inv.length;
+        const avail  = inv.filter(r=>r.Status==='Available').length;
+        const locked = inv.filter(r=>r.Status==='Locked').length;
+        const quaran = inv.filter(r=>r.Status==='Quarantined').length;
+        const totalQty = inv.reduce((s,r)=>s+r.Quantity,0);
+
+        // Order count from stats
+        const orderTotal = stats.by_order_status.reduce((s,r)=>s+r.Count,0);
+
+        document.getElementById('kpiTotal').textContent  = totalItems;
+        document.getElementById('kpiAvail').textContent  = avail;
+        document.getElementById('kpiLocked').textContent = locked;
+        document.getElementById('kpiQuaran').textContent = quaran;
+        document.getElementById('kpiQty').textContent    = totalQty.toLocaleString();
+        document.getElementById('kpiOrders').textContent = orderTotal;
+
+        // ── Chart 1: Stock by Product (bar) ──
+        // Aggregate by product from inv
+        const prdMap = {};
+        inv.forEach(r=>{
+            if(!prdMap[r.ProductID]) prdMap[r.ProductID]={label:r.ProductID, qty:0};
+            prdMap[r.ProductID].qty += r.Quantity;
+        });
+        const prdArr = Object.values(prdMap).sort((a,b)=>b.qty-a.qty);
+        makeChart('chartProduct',{
+            type:'bar',
+            data:{
+                labels: prdArr.map(r=>r.label),
+                datasets:[{
+                    label:'Units in Stock',
+                    data: prdArr.map(r=>r.qty),
+                    backgroundColor: prdArr.map((_,i)=>palette[i%palette.length]+'cc'),
+                    borderColor:     prdArr.map((_,i)=>palette[i%palette.length]),
+                    borderWidth:1, borderRadius:5
+                }]
+            },
+            options:{
+                responsive:true, maintainAspectRatio:true,
+                plugins:{legend:{display:false}},
+                scales:{
+                    x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'rgba(255,255,255,.05)'}},
+                    y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'rgba(255,255,255,.05)'}}
+                }
+            }
+        });
+
+        // ── Chart 2: Status Donut ──
+        const stColors = {'Available':'#22c55e','Locked':'#f59e0b','Quarantined':'#ef4444'};
+        const stData = stats.by_status;
+        makeChart('chartStatus',{
+            type:'doughnut',
+            data:{
+                labels: stData.map(r=>r.Status),
+                datasets:[{
+                    data: stData.map(r=>r.TotalQty),
+                    backgroundColor: stData.map(r=>(stColors[r.Status]||'#6366f1')+'cc'),
+                    borderColor:     stData.map(r=>stColors[r.Status]||'#6366f1'),
+                    borderWidth:2
+                }]
+            },
+            options:{
+                responsive:true, maintainAspectRatio:true,
+                plugins:{legend:{labels:{color:'#e2e8f0',font:{size:12}},position:'bottom'}},
+                cutout:'65%'
+            }
+        });
+
+        // ── Chart 3: Category Bar ──
+        const catData = stats.by_category;
+        makeChart('chartCategory',{
+            type:'bar',
+            data:{
+                labels: catData.map(r=>r.Category),
+                datasets:[{
+                    label:'Total Units',
+                    data: catData.map(r=>r.TotalQty),
+                    backgroundColor:['#34d399cc','#6366f1cc','#f472b6cc','#38bdf8cc'],
+                    borderColor:    ['#34d399','#6366f1','#f472b6','#38bdf8'],
+                    borderWidth:1, borderRadius:5
+                }]
+            },
+            options:{
+                indexAxis:'y', responsive:true, maintainAspectRatio:true,
+                plugins:{legend:{display:false}},
+                scales:{
+                    x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},
+                    y:{ticks:{color:'#94a3b8'},grid:{display:false}}
+                }
+            }
+        });
+
+        // ── Chart 4: Order Status Pie ──
+        const ordColors = {'Pending':'#f59e0b','Completed':'#22c55e','Cancelled':'#ef4444'};
+        const ordData = stats.by_order_status;
+        makeChart('chartOrders',{
+            type:'pie',
+            data:{
+                labels: ordData.map(r=>r.OrderStatus),
+                datasets:[{
+                    data: ordData.map(r=>r.Count),
+                    backgroundColor: ordData.map(r=>(ordColors[r.OrderStatus]||'#6366f1')+'cc'),
+                    borderColor:     ordData.map(r=>ordColors[r.OrderStatus]||'#6366f1'),
+                    borderWidth:2
+                }]
+            },
+            options:{
+                responsive:true, maintainAspectRatio:true,
+                plugins:{legend:{labels:{color:'#e2e8f0',font:{size:12}},position:'bottom'}}
+            }
+        });
+
+        // ── Product Sequence Bars ──
+        const maxQty = Math.max(...prdArr.map(r=>r.qty), 1);
+        const seq = document.getElementById('productSeq');
+        seq.innerHTML = inv
+            .slice()
+            .sort((a,b)=>a.ProductID.localeCompare(b.ProductID))
+            .map(r=>{
+                const pct = Math.round((r.Quantity/maxQty)*100);
+                const cls = r.Status==='Locked' ? 'locked' : r.Status==='Quarantined' ? 'quarantine' : '';
+                const pillCls = r.Status==='Available'?'pill-av':r.Status==='Locked'?'pill-lk':'pill-qr';
+                return `
+                <div class="prd-row">
+                    <div class="prd-badge">${r.ProductID}</div>
+                    <div style="min-width:80px">
+                        <div class="prd-name">${r.SKU_ID}</div>
+                        <div class="prd-cat">${r.Category} · ${r.Color||'N/A'} · ${r.Size||'N/A'}</div>
+                    </div>
+                    <div class="prd-bar-wrap">
+                        <div class="prd-bar-track">
+                            <div class="prd-bar-fill ${cls}" style="width:${pct}%"></div>
+                        </div>
+                    </div>
+                    <div class="prd-qty">${r.Quantity}</div>
+                    <span class="pill ${pillCls}" style="min-width:90px;justify-content:center">${r.Status}</span>
+                    <span style="font-size:.7rem;color:var(--c-muted);min-width:55px">${r.LocationID}</span>
+                </div>`;
+            }).join('');
+
+    } catch(err){
+        document.getElementById('productSeq').innerHTML = `<div class="text-danger" style="font-size:.85rem">${err.message}</div>`;
+    }
+}
+
+/* ─────────────────────────────────────────
+   LOAD INVENTORY TABLE
+───────────────────────────────────────── */
+async function loadInventory(){
+    const tbody = document.getElementById('invBody');
+    const btn   = document.getElementById('btnRefresh');
+    if(btn){ btn.disabled=true; btn.innerHTML='<i class="bi bi-arrow-clockwise"></i> Loading…'; }
+
+    try{
+        const res  = await fetch('/api/inventory');
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error);
+
+        document.getElementById('iTotal').textContent = data.length;
+        document.getElementById('iAvail').textContent = data.filter(r=>r.Status==='Available').length;
+        document.getElementById('iLock').textContent  = data.filter(r=>r.Status==='Locked').length;
+        document.getElementById('iQuar').textContent  = data.filter(r=>r.Status==='Quarantined').length;
+        document.getElementById('iQty').textContent   = data.reduce((s,r)=>s+r.Quantity,0).toLocaleString();
+
+        if(data.length===0){
+            tbody.innerHTML=`<tr><td colspan="10" class="text-center py-4" style="color:var(--c-muted)">No records found.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = data.map((r,i)=>{
+            const pc = r.Status==='Available'?'pill-av':r.Status==='Locked'?'pill-lk':'pill-qr';
+            return `<tr style="animation-delay:${i*.04}s">
+                <td>${i+1}</td>
+                <td><strong>${r.InventoryID}</strong></td>
+                <td>${r.LocationID}</td>
+                <td>${r.Zone||'—'}</td>
+                <td>${r.Aisle||'—'}</td>
+                <td>${r.ProductID}</td>
+                <td><code style="color:var(--c-primary2)">${r.SKU_ID}</code></td>
+                <td>${r.Category}</td>
+                <td>${r.Batch_ID||'—'}</td>
+                <td>${r.ExpiryDate||'—'}</td>
+                <td>${r.StaffName||r.StaffID||'—'}</td>
+                <td><strong>${r.Quantity}</strong></td>
+                <td><span class="pill ${pc}">${r.Status}</span></td>
+            </tr>`;
+        }).join('');
+    } catch(err){
+        tbody.innerHTML=`<tr><td colspan="10" class="text-center py-3 text-danger">${err.message}</td></tr>`;
+    } finally{
+        if(btn){ btn.disabled=false; btn.innerHTML='<i class="bi bi-arrow-clockwise"></i> Refresh'; }
+    }
+}
+
+function refreshAll(){ loadDashboard(); loadInventory(); }
+
+/* ─────────────────────────────────────────
+   LOAD PRODUCTS
+───────────────────────────────────────── */
+async function loadProducts(){
+    const tbody = document.getElementById('prdBody');
+    try{
+        const res  = await fetch('/api/products');
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error);
+        if(data.length===0){ tbody.innerHTML=`<tr><td colspan="9" class="text-center py-4" style="color:var(--c-muted)">No products found.</td></tr>`; return; }
+        tbody.innerHTML = data.map((r,i)=>`
+            <tr style="animation-delay:${i*.04}s">
+                <td>${i+1}</td>
+                <td><strong>${r.ProductID}</strong></td>
+                <td><code style="color:var(--c-primary2)">${r.SKU_ID}</code></td>
+                <td>${r.Category}</td>
+                <td>${r.Size||'—'}</td>
+                <td>${r.Color||'—'}</td>
+                <td>${r.Batch_ID||'—'}</td>
+                <td>${r.InventoryDate||'—'}</td>
+                <td>${r.ExpiryDate||'—'}</td>
+            </tr>`).join('');
+    } catch(err){
+        tbody.innerHTML=`<tr><td colspan="9" class="text-center py-3 text-danger">${err.message}</td></tr>`;
+    }
+}
+
+/* ─────────────────────────────────────────
+   LOAD ORDERS
+───────────────────────────────────────── */
+async function loadOrders(){
+    const tbody = document.getElementById('ordBody');
+    try{
+        const res  = await fetch('/api/orders');
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error);
+        if(data.length===0){ tbody.innerHTML=`<tr><td colspan="11" class="text-center py-4" style="color:var(--c-muted)">No orders found.</td></tr>`; return; }
+        const stColors={'Pending':'pill-lk','Processing':'pill-av','Shipped':'pill-av','Cancelled':'pill-qr'};
+        const trColors={'In Transit':'pill-lk','Out for Delivery':'pill-lk','Delivered':'pill-av','Failed Delivery':'pill-qr'};
+        tbody.innerHTML = data.map((r,i)=>`
+            <tr style="animation-delay:${i*.04}s">
+                <td>${i+1}</td>
+                <td><strong>${r.OrderID}</strong></td>
+                <td>${r.StaffName||r.StaffID}</td>
+                <td>${(r.OrderDate||'').toString().slice(0,10)}</td>
+                <td><span class="pill ${stColors[r.OrderStatus]||''}">${r.OrderStatus}</span></td>
+                <td>${r.SKU_ID||'—'}</td>
+                <td>${r.QuantityOrdered||'—'}</td>
+                <td>${r.WaybillID||'—'}</td>
+                <td><span class="pill ${trColors[r.TrackingStatus]||''}">${r.TrackingStatus||'—'}</span></td>
+                <td>${r.DeliveryZone||'—'}</td>
+                <td>${r.CourierInfo||'—'}</td>
+            </tr>`).join('');
+    } catch(err){
+        tbody.innerHTML=`<tr><td colspan="11" class="text-center py-3 text-danger">${err.message}</td></tr>`;
+    }
+}
+
+/* ─────────────────────────────────────────
+   FORM HANDLERS
+───────────────────────────────────────── */
+// Inbound
+document.getElementById('formIn').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = document.getElementById('btnIn');
+    setBtnLoad(btn,true);
+    try{
+        const res = await fetch('/api/inbound',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                ProductID:  document.getElementById('inPrd').value.trim(),
+                LocationID: document.getElementById('inLoc').value.trim(),
+                StaffID:    document.getElementById('inStaff').value.trim(),
+                Quantity:   parseInt(document.getElementById('inQty').value)
+            })
+        });
+        const d = await res.json();
+        if(!res.ok) throw new Error(d.error);
+        toast(d.message,'ok');
+        e.target.reset(); refreshAll();
+    } catch(err){ toast(err.message,'er'); }
+    finally{ setBtnLoad(btn,false); }
+});
+
+// Outbound
+document.getElementById('formOut').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = document.getElementById('btnOut');
+    setBtnLoad(btn,true);
+    try{
+        const res = await fetch('/api/order',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                ProductID:       document.getElementById('outPrd').value.trim(),
+                QuantityOrdered: parseInt(document.getElementById('outQty').value)
+            })
+        });
+        const d = await res.json();
+        if(res.status===400){ toast(`🚫 ${d.error}`,'er'); return; }
+        if(!res.ok) throw new Error(d.error);
+        toast(d.message,'ok');
+        e.target.reset(); refreshAll();
+    } catch(err){ toast(err.message,'er'); }
+    finally{ setBtnLoad(btn,false); }
+});
+
+// Reverse
+document.getElementById('formRet').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = document.getElementById('btnRet');
+    setBtnLoad(btn,true);
+    try{
+        const res = await fetch('/api/return',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                InventoryID: document.getElementById('retId').value.trim(),
+                NewStatus:   document.getElementById('retSt').value
+            })
+        });
+        const d = await res.json();
+        if(!res.ok) throw new Error(d.error);
+        toast(d.message,'ok');
+        e.target.reset(); refreshAll();
+    } catch(err){ toast(err.message,'er'); }
+    finally{ setBtnLoad(btn,false); }
+});
+
+// Load data when switching tabs
+document.querySelectorAll('[data-bs-target="#page-inventory"]').forEach(btn=>{
+    btn.addEventListener('shown.bs.tab', loadInventory);
+});
+document.querySelectorAll('[data-bs-target="#page-products"]').forEach(btn=>{
+    btn.addEventListener('shown.bs.tab', loadProducts);
+});
+document.querySelectorAll('[data-bs-target="#page-orders"]').forEach(btn=>{
+    btn.addEventListener('shown.bs.tab', loadOrders);
+});
+
+/* ─────────────────────────────────────────
+   BOOT
+───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', ()=>{
+    loadDashboard();
+    // Auto-refresh every 30s
+    setInterval(()=>{
+        const activeTab = document.querySelector('#mainNav .nav-link.active');
+        if(activeTab?.dataset?.bsTarget==='#page-dashboard') loadDashboard();
+        if(activeTab?.dataset?.bsTarget==='#page-inventory') loadInventory();
+    }, 30000);
+});
+</script>
+</body>
+</html>
