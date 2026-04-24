@@ -1,28 +1,36 @@
 """
 WMIS - Warehouse Management Information System
-Vercel Serverless Backend — Azure SQL Server via pymssql.
+Vercel Serverless Backend — Vercel Postgres/Neon via psycopg2.
 """
 
 import os
 import uuid
-import pymssql
+import psycopg2
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Fetch DB credentials from environment variables
-DB_SERVER = os.environ.get("DB_SERVER", "localhost")
-DB_NAME = os.environ.get("DB_NAME", "WMIS_DB")
-DB_USER = os.environ.get("DB_USER", "sa")
-DB_PWD = os.environ.get("DB_PASSWORD", "Abc123@@@")
-
 def get_conn():
-    # pymssql connection
-    return pymssql.connect(
-        server=DB_SERVER,
-        user=DB_USER,
-        password=DB_PWD,
-        database=DB_NAME
+    # Priority 1: DATABASE_URL (Standard Vercel/Neon integration)
+    # Includes pooling (PgBouncer) and sslmode=require
+    url = os.environ.get("DATABASE_URL")
+    if url:
+        # Compatibility fix for some SQL libraries that require 'postgresql://' prefix
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return psycopg2.connect(url)
+    
+    # Priority 2: POSTGRES_URL (Older Vercel Postgres format)
+    url_legacy = os.environ.get("POSTGRES_URL")
+    if url_legacy:
+        return psycopg2.connect(url_legacy)
+
+    # Fallback: Individual components (for local development or custom setups)
+    return psycopg2.connect(
+        host=os.environ.get("DB_HOST", "localhost"),
+        database=os.environ.get("DB_NAME", "wmis_db"),
+        user=os.environ.get("DB_USER", "postgres"),
+        password=os.environ.get("DB_PASSWORD", "password")
     )
 
 
@@ -39,6 +47,7 @@ def gen_id(prefix):
 
 
 def is_oversell_error(e):
+    # PostgreSQL error code for RAISE EXCEPTION '50000'
     return "50000" in str(e) or "Overselling" in str(e)
 
 
@@ -248,7 +257,7 @@ def place_order():
         cur  = conn.cursor()
 
         cur.execute(
-            "INSERT INTO ORDERS (OrderID, StaffID, OrderDate, OrderStatus) VALUES (%s, %s, GETDATE(), 'Pending')",
+            "INSERT INTO ORDERS (OrderID, StaffID, OrderDate, OrderStatus) VALUES (%s, %s, NOW(), 'Pending')",
             (order_id, staff_id)
         )
         # This INSERT fires trg_PreventOverselling on the database side.
