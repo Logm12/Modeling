@@ -11,14 +11,12 @@ from flask import Flask, request, jsonify, send_file
 app = Flask(__name__)
 
 def get_conn():
-    # Priority 1: DATABASE_URL (Standard Vercel/Neon integration)
     url = os.environ.get("DATABASE_URL")
     if url:
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         return psycopg2.connect(url)
     
-    # Priority 2: POSTGRES_URL (Older Vercel Postgres format)
     url_legacy = os.environ.get("POSTGRES_URL")
     if url_legacy:
         return psycopg2.connect(url_legacy)
@@ -52,16 +50,14 @@ def is_oversell_error(e):
 # ============================================================
 @app.route("/")
 def index():
-    # Serving index.html from the root directory relative to this script
-    # In Vercel, the directory structure is preserved in the function environment
     try:
         return send_file("../index.html")
     except:
-        # Fallback if the path is slightly different in the build environment
         return send_file("index.html")
 
 # ============================================================
 # API ENDPOINTS
+# Aliasing columns to PascalCase to match index.html expectations
 # ============================================================
 
 @app.route("/api/products", methods=["GET"])
@@ -70,9 +66,15 @@ def get_products():
         conn = get_conn()
         cur  = conn.cursor()
         cur.execute("""
-            SELECT ProductID, SKU_ID, Category, Size, Color,
-                   Batch_ID, CAST(InventoryDate AS VARCHAR) as InventoryDate, 
-                   CAST(ExpiryDate AS VARCHAR) as ExpiryDate
+            SELECT 
+                ProductID as "ProductID", 
+                SKU_ID as "SKU_ID", 
+                Category as "Category", 
+                Size as "Size", 
+                Color as "Color",
+                Batch_ID as "Batch_ID", 
+                CAST(InventoryDate AS VARCHAR) as "InventoryDate", 
+                CAST(ExpiryDate AS VARCHAR) as "ExpiryDate"
             FROM   PRODUCTS
             ORDER  BY ProductID
         """)
@@ -90,22 +92,22 @@ def get_inventory():
         cur  = conn.cursor()
         cur.execute("""
             SELECT
-                i.InventoryID,
-                i.LocationID,
-                wl.Zone,
-                wl.Aisle,
-                wl.Shelf,
-                i.ProductID,
-                p.SKU_ID,
-                p.Category,
-                p.Size,
-                p.Color,
-                p.Batch_ID,
-                CAST(p.ExpiryDate AS VARCHAR) as ExpiryDate,
-                i.StaffID,
-                s.Name  AS StaffName,
-                i.Quantity,
-                i.Status
+                i.InventoryID as "InventoryID",
+                i.LocationID as "LocationID",
+                wl.Zone as "Zone",
+                wl.Aisle as "Aisle",
+                wl.Shelf as "Shelf",
+                i.ProductID as "ProductID",
+                p.SKU_ID as "SKU_ID",
+                p.Category as "Category",
+                p.Size as "Size",
+                p.Color as "Color",
+                p.Batch_ID as "Batch_ID",
+                CAST(p.ExpiryDate AS VARCHAR) as "ExpiryDate",
+                i.StaffID as "StaffID",
+                s.Name  AS "StaffName",
+                i.Quantity as "Quantity",
+                i.Status as "Status"
             FROM   INVENTORY i
             INNER JOIN PRODUCTS           p  ON p.ProductID  = i.ProductID
             INNER JOIN WAREHOUSE_LOCATION wl ON wl.LocationID = i.LocationID
@@ -126,19 +128,19 @@ def get_orders():
         cur  = conn.cursor()
         cur.execute("""
             SELECT
-                o.OrderID,
-                o.StaffID,
-                s.Name           AS StaffName,
-                CAST(o.OrderDate AS VARCHAR) as OrderDate,
-                o.OrderStatus,
-                od.OrderDetailID,
-                od.ProductID,
-                p.SKU_ID,
-                od.QuantityOrdered,
-                w.WaybillID,
-                w.TrackingStatus,
-                w.DeliveryZone,
-                w.CourierInfo
+                o.OrderID as "OrderID",
+                o.StaffID as "StaffID",
+                s.Name           AS "StaffName",
+                CAST(o.OrderDate AS VARCHAR) as "OrderDate",
+                o.OrderStatus as "OrderStatus",
+                od.OrderDetailID as "OrderDetailID",
+                od.ProductID as "ProductID",
+                p.SKU_ID as "SKU_ID",
+                od.QuantityOrdered as "QuantityOrdered",
+                w.WaybillID as "WaybillID",
+                w.TrackingStatus as "TrackingStatus",
+                w.DeliveryZone as "DeliveryZone",
+                w.CourierInfo as "CourierInfo"
             FROM   ORDERS o
             INNER JOIN STAFF        s  ON s.StaffID      = o.StaffID
             LEFT  JOIN ORDER_DETAILS od ON od.OrderID    = o.OrderID
@@ -160,8 +162,8 @@ def get_stats():
         cur  = conn.cursor()
 
         cur.execute("""
-            SELECT p.ProductID, p.SKU_ID, p.Category, p.Color,
-                   SUM(i.Quantity) AS TotalQty, i.Status
+            SELECT p.ProductID as "ProductID", p.SKU_ID as "SKU_ID", p.Category as "Category", p.Color as "Color",
+                   SUM(i.Quantity) AS "TotalQty", i.Status as "Status"
             FROM   INVENTORY i
             INNER JOIN PRODUCTS p ON p.ProductID = i.ProductID
             GROUP  BY p.ProductID, p.SKU_ID, p.Category, p.Color, i.Status
@@ -170,23 +172,23 @@ def get_stats():
         by_product = rows_to_dict(cur)
 
         cur.execute("""
-            SELECT Status, COUNT(*) AS Count, SUM(Quantity) AS TotalQty
+            SELECT Status as "Status", COUNT(*) AS "Count", SUM(Quantity) AS "TotalQty"
             FROM   INVENTORY
             GROUP  BY Status
         """)
         by_status = rows_to_dict(cur)
 
         cur.execute("""
-            SELECT p.Category, SUM(i.Quantity) AS TotalQty, COUNT(*) AS ItemCount
+            SELECT p.Category as "Category", SUM(i.Quantity) AS "TotalQty", COUNT(*) AS "ItemCount"
             FROM   INVENTORY i
             INNER JOIN PRODUCTS p ON p.ProductID = i.ProductID
             GROUP  BY p.Category
-            ORDER  BY TotalQty DESC
+            ORDER  BY "TotalQty" DESC
         """)
         by_category = rows_to_dict(cur)
 
         cur.execute("""
-            SELECT OrderStatus, COUNT(*) AS Count
+            SELECT OrderStatus as "OrderStatus", COUNT(*) AS "Count"
             FROM   ORDERS
             GROUP  BY OrderStatus
         """)
@@ -219,7 +221,7 @@ def inbound():
         cur  = conn.cursor()
 
         cur.execute(
-            "SELECT InventoryID FROM INVENTORY WHERE ProductID = %s AND LocationID = %s",
+            'SELECT "inventoryid" FROM INVENTORY WHERE "productid" = %s AND "locationid" = %s',
             (product_id, location_id)
         )
         existing = cur.fetchone()
@@ -227,14 +229,14 @@ def inbound():
         if existing:
             inv_id = existing[0]
             cur.execute(
-                "UPDATE INVENTORY SET Quantity = Quantity + %s WHERE InventoryID = %s",
+                'UPDATE INVENTORY SET "quantity" = "quantity" + %s WHERE "inventoryid" = %s',
                 (quantity, inv_id)
             )
             msg = f"Restocked {quantity} units. InventoryID: {inv_id}"
         else:
             inv_id = gen_id("INV")
             cur.execute(
-                """INSERT INTO INVENTORY (InventoryID, LocationID, ProductID, StaffID, Quantity, Status)
+                """INSERT INTO INVENTORY ("inventoryid", "locationid", "productid", "staffid", "quantity", "status")
                    VALUES (%s, %s, %s, %s, %s, 'Available')""",
                 (inv_id, location_id, product_id, staff_id, quantity)
             )
@@ -266,11 +268,11 @@ def place_order():
         cur  = conn.cursor()
 
         cur.execute(
-            "INSERT INTO ORDERS (OrderID, StaffID, OrderDate, OrderStatus) VALUES (%s, %s, NOW(), 'Pending')",
+            'INSERT INTO ORDERS ("orderid", "staffid", "orderdate", "orderstatus") VALUES (%s, %s, NOW(), \'Pending\')',
             (order_id, staff_id)
         )
         cur.execute(
-            "INSERT INTO ORDER_DETAILS (OrderDetailID, OrderID, ProductID, QuantityOrdered) VALUES (%s, %s, %s, %s)",
+            'INSERT INTO ORDER_DETAILS ("orderdetailid", "orderid", "productid", "quantityordered") VALUES (%s, %s, %s, %s)',
             (order_detail_id, order_id, product_id, quantity_ordered)
         )
         conn.commit()
@@ -296,7 +298,7 @@ def return_item():
         conn = get_conn()
         cur  = conn.cursor()
         cur.execute(
-            "UPDATE INVENTORY SET Status = %s WHERE InventoryID = %s",
+            'UPDATE INVENTORY SET "status" = %s WHERE "inventoryid" = %s',
             (new_status, inventory_id)
         )
 
